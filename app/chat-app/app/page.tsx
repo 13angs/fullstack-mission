@@ -1,6 +1,6 @@
 "use client"
-import React, { useState, ChangeEvent, KeyboardEvent } from 'react';
-import Image from 'next/image'; // Import the Image component from next/image
+import React, { useState, useEffect, ChangeEvent, KeyboardEvent } from 'react';
+import Image from 'next/image';
 
 interface Member {
   id: number;
@@ -15,24 +15,54 @@ interface Message {
 }
 
 const Chat: React.FC = () => {
-  const [members, setMembers] = useState<Member[]>([
-    { id: 1, name: 'Member 1', avatar: 'https://cdn.dribbble.com/users/3841177/screenshots/11950347/cartoon-avatar_2020__8_circle.png' },
-    { id: 2, name: 'Member 2', avatar: 'https://www.gamer-hub.io/static/img/team/sam.png' },
-    // Add more members as needed
-  ]);
-
+  const [members, setMembers] = useState<Member[]>([]);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState<string>('');
 
+  useEffect(() => {
+    // Fetch members from the API
+    fetch('http://localhost:5044/api/chat/members')
+      .then((response) => response.json())
+      .then((data) => setMembers(data))
+      .catch((error) => console.error('Error fetching members:', error));
+  }, []);
+
+  useEffect(() => {
+    // Fetch messages from the API based on selectedMember
+    if (selectedMember) {
+      fetch(`http://localhost:5044/api/chat/messages?memberId=${selectedMember.id}`)
+        .then((response) => response.json())
+        .then((data) => setMessages(data))
+        .catch((error) => console.error('Error fetching messages:', error));
+    }
+  }, [selectedMember]);
+
   const sendMessage = (): void => {
     if (newMessage.trim() === '' || !selectedMember) return;
 
-    setMessages([
-      ...messages,
-      { memberId: selectedMember.id, text: newMessage, timestamp: Date.now() },
-    ]);
+    const newMessageObj: Message = {
+      memberId: selectedMember.id,
+      text: newMessage,
+      timestamp: Date.now(),
+    };
+
+    // Update the UI immediately
+    setMessages([...messages, newMessageObj]);
     setNewMessage('');
+
+    // Send message to the API
+    fetch('http://localhost:5044/api/chat/sendMessage', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        memberId: selectedMember.id,
+        text: newMessage,
+      }),
+    })
+      .catch((error) => console.error('Error sending message:', error));
   };
 
   const selectMember = (member: Member): void => {
@@ -115,7 +145,3 @@ const Chat: React.FC = () => {
 };
 
 export default Chat;
-
-
-
-
