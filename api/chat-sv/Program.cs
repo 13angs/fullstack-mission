@@ -1,4 +1,5 @@
 using chat_sv.Controllers;
+using chat_sv.Hubs;
 using MongoDB.Driver;
 using Newtonsoft.Json.Serialization;
 
@@ -27,7 +28,7 @@ builder.Services.AddControllers()
         options.SerializerSettings.ContractResolver = new DefaultContractResolver();
     });
 builder.Services.AddSingleton<IMongoClient>(sp => new MongoClient(configuration["MongoSetting:ConnectionString"]));
-
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -70,5 +71,5 @@ app.UseCors(configuration["CorsName"]!);
 app.UseAuthorization();
 
 app.MapControllers();
-
+app.MapHub<ChatHub>("/hub/chat");
 app.Run();

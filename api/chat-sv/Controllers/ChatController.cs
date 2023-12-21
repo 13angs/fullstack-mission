@@ -1,4 +1,6 @@
+using chat_sv.Hubs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using Newtonsoft.Json;
@@ -11,12 +13,14 @@ namespace chat_sv.Controllers
     {
         private readonly IMongoCollection<Member> _membersCollection;
         private readonly IMongoCollection<Message> _messagesCollection;
+        private readonly IHubContext<ChatHub> _chatHubContext;
 
-        public ChatController(IMongoClient mongoClient)
+        public ChatController(IMongoClient mongoClient, IHubContext<ChatHub> chatHubContext)
         {
             var database = mongoClient.GetDatabase("chat_db");
             _membersCollection = database.GetCollection<Member>("members");
             _messagesCollection = database.GetCollection<Message>("messages");
+            _chatHubContext = chatHubContext;
         }
 
         [HttpGet("members")]
@@ -28,26 +32,30 @@ namespace chat_sv.Controllers
 
 
         [HttpPost("sendMessage")]
-        public ActionResult SendMessage(MessageRequest messageRequest)
+        public async Task<ActionResult> SendMessage(MessageRequest messageRequest)
         {
             if (messageRequest == null || string.IsNullOrWhiteSpace(messageRequest.Text) || string.IsNullOrEmpty(messageRequest.MemberId))
             {
                 return BadRequest("Invalid message request");
             }
 
-            Member selectedMember = _membersCollection.Find(m => m.Id == messageRequest.MemberId).FirstOrDefault();
+            Member selectedMember = await _membersCollection.Find(m => m.Id == messageRequest.MemberId).FirstOrDefaultAsync();
 
             if (selectedMember == null)
             {
                 return NotFound("Member not found");
             }
 
-            _messagesCollection.InsertOne(new Message
+            var newMessage = new Message
             {
                 MemberId = selectedMember.Id,
                 Text = messageRequest.Text,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            });
+            };
+            await _messagesCollection.InsertOneAsync(newMessage);
+
+            // Notify clients about the new message using SignalR
+            await _chatHubContext.Clients.All.SendAsync("ReceiveMessage", JsonConvert.SerializeObject(newMessage));
 
             return Ok();
         }

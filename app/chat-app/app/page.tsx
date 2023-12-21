@@ -1,6 +1,8 @@
 "use client"
 import React, { useState, useEffect, ChangeEvent, KeyboardEvent } from 'react';
 import Image from 'next/image';
+import * as signalR from '@microsoft/signalr';
+import { HttpTransportType } from '@microsoft/signalr';
 
 interface Member {
   _id: string;
@@ -9,6 +11,7 @@ interface Member {
 }
 
 interface Message {
+  _id?: string;
   member_id: string;
   text: string;
   timestamp: number;
@@ -19,12 +22,41 @@ const Chat: React.FC = () => {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState<string>('');
+  const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
 
   useEffect(() => {
-    // Read member_id from the URL
-    const url = new URL(window.location.href);
-    const member_id = url.searchParams.get('member_id');
+    // Initialize SignalR connection
+    const newConnection = new signalR.HubConnectionBuilder()
+      .withUrl('http://localhost:5044/hub/chat', {
+        skipNegotiation: true,
+        transport: HttpTransportType.WebSockets
+      })
+      .build();
 
+    setConnection(newConnection);
+  }, []);
+
+  useEffect(() => {
+    if (!connection) return;
+
+    // Start SignalR connection
+    connection.start().catch((err) => console.error('SignalR connection error:', err));
+
+    // Subscribe to ReceiveMessage event
+    connection.on('ReceiveMessage', (strMessage) => {
+      // Handle incoming message
+      const message: Message = JSON.parse(strMessage);
+
+      setMessages((prevMessages) => [...prevMessages, message]);
+    });
+
+    return () => {
+      // Stop SignalR connection when component unmounts
+      connection.stop();
+    };
+  }, [connection]);
+
+  useEffect(() => {
     // Fetch members from the API
     fetch('http://localhost:5044/api/chat/members')
       .then((response) => response.json())
@@ -32,6 +64,8 @@ const Chat: React.FC = () => {
         setMembers(data);
 
         // Set selectedMember based on member_id from the URL
+        const url = new URL(window.location.href);
+        const member_id = url.searchParams.get('member_id');
         if (member_id) {
           const selected = data.find((member: Member) => member._id === member_id);
           if (selected) {
@@ -43,10 +77,9 @@ const Chat: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Fetch messages from the API based on selectedMember or member_id from the URL
-    const idToFetch = selectedMember ? selectedMember._id : new URL(window.location.href).searchParams.get('member_id');
-    if (idToFetch) {
-      fetch(`http://localhost:5044/api/chat/messages?member_id=${idToFetch}`)
+    if (selectedMember) {
+      // Fetch messages from the API based on selectedMember
+      fetch(`http://localhost:5044/api/chat/messages?member_id=${selectedMember._id}`)
         .then((response) => response.json())
         .then((data) => setMessages(data))
         .catch((error) => console.error('Error fetching messages:', error));
@@ -54,16 +87,16 @@ const Chat: React.FC = () => {
   }, [selectedMember]);
 
   const sendMessage = (): void => {
-    if (newMessage.trim() === '' || !selectedMember) return;
+    if (newMessage.trim() === '' || !selectedMember || !connection) return;
 
-    const newMessageObj: Message = {
-      member_id: selectedMember._id,
-      text: newMessage,
-      timestamp: Date.now(),
-    };
+    // const newMessageObj: Message = {
+    //   member_id: selectedMember._id,
+    //   text: newMessage,
+    //   timestamp: Date.now(),
+    // };
 
     // Update the UI immediately
-    setMessages([...messages, newMessageObj]);
+    // setMessages([...messages, newMessageObj]);
     setNewMessage('');
 
     // Send message to the API
@@ -78,6 +111,10 @@ const Chat: React.FC = () => {
       }),
     })
       .catch((error) => console.error('Error sending message:', error));
+
+    // // Send message to the SignalR hub
+    // connection.invoke('SendMessage', newMessageObj)
+    //   .catch((error) => console.error('Error sending message:', error));
   };
 
   const selectMember = (member: Member): void => {
