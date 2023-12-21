@@ -1,0 +1,10 @@
+# values.yaml
+mongo:
+  enabled: true
+  rootUsername: "root"
+  rootPassword: "password"
+
+service:
+  name: "chat-service"
+  port: 27017
+  nodePort: 30017

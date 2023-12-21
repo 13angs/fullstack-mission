@@ -3,13 +3,13 @@ import React, { useState, useEffect, ChangeEvent, KeyboardEvent } from 'react';
 import Image from 'next/image';
 
 interface Member {
-  id: number;
+  _id: string;
   name: string;
   avatar: string;
 }
 
 interface Message {
-  memberId: number;
+  member_id: string;
   text: string;
   timestamp: number;
 }
@@ -31,7 +31,7 @@ const Chat: React.FC = () => {
   useEffect(() => {
     // Fetch messages from the API based on selectedMember
     if (selectedMember) {
-      fetch(`http://localhost:5044/api/chat/messages?memberId=${selectedMember.id}`)
+      fetch(`http://localhost:5044/api/chat/messages?member_id=${selectedMember._id}`)
         .then((response) => response.json())
         .then((data) => setMessages(data))
         .catch((error) => console.error('Error fetching messages:', error));
@@ -42,7 +42,7 @@ const Chat: React.FC = () => {
     if (newMessage.trim() === '' || !selectedMember) return;
 
     const newMessageObj: Message = {
-      memberId: selectedMember.id,
+      member_id: selectedMember._id,
       text: newMessage,
       timestamp: Date.now(),
     };
@@ -58,7 +58,7 @@ const Chat: React.FC = () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        memberId: selectedMember.id,
+        memberId: selectedMember._id,
         text: newMessage,
       }),
     })
@@ -70,7 +70,7 @@ const Chat: React.FC = () => {
   };
 
   const filteredMessages = selectedMember
-    ? messages.filter((message) => message.memberId === selectedMember.id)
+    ? messages.filter((message) => message.member_id === selectedMember._id)
     : [];
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>): void => {
@@ -86,9 +86,9 @@ const Chat: React.FC = () => {
         <ul>
           {members.map((member) => (
             <li
-              key={member.id}
+              key={member._id}
               className={`cursor-pointer mb-2 p-2 rounded ${
-                selectedMember?.id === member.id ? 'bg-blue-200' : 'bg-gray-200'
+                selectedMember?._id === member._id ? 'bg-blue-200' : 'bg-gray-200'
               }`}
               onClick={() => selectMember(member)}
             >
