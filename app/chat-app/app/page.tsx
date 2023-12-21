@@ -47,7 +47,10 @@ const Chat: React.FC = () => {
       // Handle incoming message
       const message: Message = JSON.parse(strMessage);
 
-      setMessages((prevMessages) => [...prevMessages, message]);
+      setMessages((prevMessages) => {
+        if (prevMessages.some(item => item.timestamp === message.timestamp)) { return prevMessages }
+        return [...prevMessages, message]
+      });
     });
 
     return () => {
@@ -89,14 +92,12 @@ const Chat: React.FC = () => {
   const sendMessage = (): void => {
     if (newMessage.trim() === '' || !selectedMember || !connection) return;
 
-    // const newMessageObj: Message = {
-    //   member_id: selectedMember._id,
-    //   text: newMessage,
-    //   timestamp: Date.now(),
-    // };
+    const newMessageObj: Message = {
+      member_id: selectedMember._id,
+      text: newMessage,
+      timestamp: Date.now(),
+    };
 
-    // Update the UI immediately
-    // setMessages([...messages, newMessageObj]);
     setNewMessage('');
 
     // Send message to the API
@@ -111,10 +112,6 @@ const Chat: React.FC = () => {
       }),
     })
       .catch((error) => console.error('Error sending message:', error));
-
-    // // Send message to the SignalR hub
-    // connection.invoke('SendMessage', newMessageObj)
-    //   .catch((error) => console.error('Error sending message:', error));
   };
 
   const selectMember = (member: Member): void => {
