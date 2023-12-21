@@ -21,17 +21,32 @@ const Chat: React.FC = () => {
   const [newMessage, setNewMessage] = useState<string>('');
 
   useEffect(() => {
+    // Read member_id from the URL
+    const url = new URL(window.location.href);
+    const member_id = url.searchParams.get('member_id');
+
     // Fetch members from the API
     fetch('http://localhost:5044/api/chat/members')
       .then((response) => response.json())
-      .then((data) => setMembers(data))
+      .then((data) => {
+        setMembers(data);
+
+        // Set selectedMember based on member_id from the URL
+        if (member_id) {
+          const selected = data.find((member: Member) => member._id === member_id);
+          if (selected) {
+            setSelectedMember(selected);
+          }
+        }
+      })
       .catch((error) => console.error('Error fetching members:', error));
   }, []);
 
   useEffect(() => {
-    // Fetch messages from the API based on selectedMember
-    if (selectedMember) {
-      fetch(`http://localhost:5044/api/chat/messages?member_id=${selectedMember._id}`)
+    // Fetch messages from the API based on selectedMember or member_id from the URL
+    const idToFetch = selectedMember ? selectedMember._id : new URL(window.location.href).searchParams.get('member_id');
+    if (idToFetch) {
+      fetch(`http://localhost:5044/api/chat/messages?member_id=${idToFetch}`)
         .then((response) => response.json())
         .then((data) => setMessages(data))
         .catch((error) => console.error('Error fetching messages:', error));
@@ -58,7 +73,7 @@ const Chat: React.FC = () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        memberId: selectedMember._id,
+        member_id: selectedMember._id,
         text: newMessage,
       }),
     })
@@ -66,6 +81,11 @@ const Chat: React.FC = () => {
   };
 
   const selectMember = (member: Member): void => {
+    // Update the URL with the member_id
+    const url = new URL(window.location.href);
+    url.searchParams.set('member_id', member._id);
+    window.history.pushState({}, '', url.toString());
+
     setSelectedMember(member);
   };
 
@@ -87,9 +107,8 @@ const Chat: React.FC = () => {
           {members.map((member) => (
             <li
               key={member._id}
-              className={`cursor-pointer mb-2 p-2 rounded ${
-                selectedMember?._id === member._id ? 'bg-blue-200' : 'bg-gray-200'
-              }`}
+              className={`cursor-pointer mb-2 p-2 rounded ${selectedMember?._id === member._id ? 'bg-blue-200' : 'bg-gray-200'
+                }`}
               onClick={() => selectMember(member)}
             >
               {member.name}
