@@ -11,44 +11,43 @@ namespace chat_sv.Controllers
     [Route("api/chat")]
     public class ChatController : ControllerBase
     {
-        private readonly IMongoCollection<Member> _membersCollection;
+        private readonly IMongoCollection<User> _usersCollection;  // Updated variable name
         private readonly IMongoCollection<Message> _messagesCollection;
         private readonly IHubContext<ChatHub> _chatHubContext;
 
         public ChatController(IMongoClient mongoClient, IHubContext<ChatHub> chatHubContext)
         {
             var database = mongoClient.GetDatabase("chat_db");
-            _membersCollection = database.GetCollection<Member>("members");
+            _usersCollection = database.GetCollection<User>("users");  // Updated collection name
             _messagesCollection = database.GetCollection<Message>("messages");
             _chatHubContext = chatHubContext;
         }
 
-        [HttpGet("members")]
-        public ActionResult<IEnumerable<Member>> GetMembers()
+        [HttpGet("users")]  // Updated endpoint
+        public ActionResult<IEnumerable<User>> GetUsers()
         {
-            var members = _membersCollection.Find(member => true).ToList();
-            return Ok(members);
+            var users = _usersCollection.Find(user => true).ToList();  // Updated variable name
+            return Ok(users);
         }
-
 
         [HttpPost("sendMessage")]
         public async Task<ActionResult> SendMessage(MessageRequest messageRequest)
         {
-            if (messageRequest == null || string.IsNullOrWhiteSpace(messageRequest.Text) || string.IsNullOrEmpty(messageRequest.MemberId))
+            if (messageRequest == null || string.IsNullOrWhiteSpace(messageRequest.Text) || string.IsNullOrEmpty(messageRequest.UserId))  // Updated property name
             {
                 return BadRequest("Invalid message request");
             }
 
-            Member selectedMember = await _membersCollection.Find(m => m.Id == messageRequest.MemberId).FirstOrDefaultAsync();
+            User selectedUser = await _usersCollection.Find(u => u.Id == messageRequest.UserId).FirstOrDefaultAsync();  // Updated variable name
 
-            if (selectedMember == null)
+            if (selectedUser == null)
             {
-                return NotFound("Member not found");
+                return NotFound("User not found");  // Updated message
             }
 
             var newMessage = new Message
             {
-                MemberId = selectedMember.Id,
+                UserId = selectedUser.Id,  // Updated property name
                 Text = messageRequest.Text,
                 Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
@@ -63,25 +62,24 @@ namespace chat_sv.Controllers
         [HttpGet("messages")]
         public ActionResult<IEnumerable<Message>> GetUserMessages([FromQuery] MessageParams messageParams)
         {
-            if (string.IsNullOrEmpty(messageParams.MemberId))
+            if (string.IsNullOrEmpty(messageParams.UserId))  // Updated property name
             {
                 var messages = _messagesCollection.Find(message => true).ToList();
                 return Ok(messages);
             }
 
-            var userMessages = _messagesCollection.Find(message => message.MemberId == messageParams.MemberId).ToList();
+            var userMessages = _messagesCollection.Find(message => message.UserId == messageParams.UserId).ToList();  // Updated property name
 
             if (userMessages == null || userMessages.Count == 0)
             {
-                return NotFound("No messages found for the specified member");
+                return NotFound("No messages found for the specified user");  // Updated message
             }
 
             return Ok(userMessages);
         }
-
     }
 
-    public class Member
+    public class User  // Updated class name
     {
         [BsonElement("_id")]
         [JsonProperty("_id")]
@@ -102,9 +100,9 @@ namespace chat_sv.Controllers
         [JsonProperty("_id")]
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
-        [BsonElement("member_id")]
-        [JsonProperty("member_id")]
-        public string MemberId { get; set; } = string.Empty;
+        [BsonElement("user_id")]  // Updated property name
+        [JsonProperty("user_id")]
+        public string UserId { get; set; } = string.Empty;
 
         [BsonElement("text")]
         [JsonProperty("text")]
@@ -117,17 +115,18 @@ namespace chat_sv.Controllers
 
     public class MessageRequest
     {
-        [BsonElement("member_id")]
-        [JsonProperty("member_id")]
-        public string MemberId { get; set; } = string.Empty;
+        [BsonElement("user_id")]  // Updated property name
+        [JsonProperty("user_id")]
+        public string UserId { get; set; } = string.Empty;
 
         [BsonElement("text")]
         [JsonProperty("text")]
         public string? Text { get; set; }
     }
+
     public class MessageParams
     {
-        [FromQuery(Name = "member_id")]
-        public string MemberId { get; set; } = string.Empty;
+        [FromQuery(Name = "user_id")]  // Updated property name
+        public string UserId { get; set; } = string.Empty;
     }
 }

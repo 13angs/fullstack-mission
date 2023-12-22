@@ -4,7 +4,7 @@ import Image from 'next/image';
 import * as signalR from '@microsoft/signalr';
 import { HttpTransportType } from '@microsoft/signalr';
 
-interface Member {
+interface User {
   _id: string;
   name: string;
   avatar: string;
@@ -12,14 +12,14 @@ interface Member {
 
 interface Message {
   _id?: string;
-  member_id: string;
+  user_id: string;
   text: string;
   timestamp: number;
 }
 
 const Chat: React.FC = () => {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState<string>('');
   const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
@@ -60,67 +60,67 @@ const Chat: React.FC = () => {
   }, [connection]);
 
   useEffect(() => {
-    if (!connection || !selectedMember) return;
+    if (!connection || !selectedUser) return;
 
-    // Notify server when a member is selected
-    connection.invoke('SelectMember', selectedMember._id)
-      .catch((err) => console.error('Error invoking SelectMember:', err));
+    // Notify server when a user is selected
+    connection.invoke('SelectUser', selectedUser._id)
+      .catch((err) => console.error('Error invoking SelectUser:', err));
     // eslint-disable-next-line no-use-before-define
   }, []);
 
   useEffect(() => {
     if (!connection) return;
 
-    // Subscribe to MemberSelected event
-    connection.on('MemberSelected', (selectedMemberId) => {
-      // Handle member selection in real-time
-      const selected = members.find((member) => member._id === selectedMemberId);
+    // Subscribe to UserSelected event
+    connection.on('UserSelected', (selectedUserId) => {
+      // Handle user selection in real-time
+      const selected = users.find((user) => user._id === selectedUserId);
       if (selected) {
-        setSelectedMember(selected);
+        setSelectedUser(selected);
       }
     });
 
     return () => {
-      // Unsubscribe from MemberSelected event when component unmounts
-      connection.off('MemberSelected');
+      // Unsubscribe from UserSelected event when component unmounts
+      connection.off('UserSelected');
     };
   }, []);
 
   useEffect(() => {
-    // Fetch members from the API
-    fetch('http://localhost:5044/api/chat/members')
+    // Fetch users from the API
+    fetch('http://localhost:5044/api/chat/users')
       .then((response) => response.json())
       .then((data) => {
-        setMembers(data);
+        setUsers(data);
 
-        // Set selectedMember based on member_id from the URL
+        // Set selectedUser based on user_id from the URL
         const url = new URL(window.location.href);
-        const member_id = url.searchParams.get('member_id');
-        if (member_id) {
-          const selected = data.find((member: Member) => member._id === member_id);
+        const user_id = url.searchParams.get('user_id');
+        if (user_id) {
+          const selected = data.find((user: User) => user._id === user_id);
           if (selected) {
-            setSelectedMember(selected);
+            setSelectedUser(selected);
           }
         }
       })
-      .catch((error) => console.error('Error fetching members:', error));
+      .catch((error) => console.error('Error fetching users:', error));
   }, []);
 
   useEffect(() => {
-    if (selectedMember) {
-      // Fetch messages from the API based on selectedMember
-      fetch(`http://localhost:5044/api/chat/messages?member_id=${selectedMember._id}`)
+    if (selectedUser) {
+      // Fetch messages from the API based on selectedUser
+      fetch(`http://localhost:5044/api/chat/messages?user_id=${selectedUser._id}`)
         .then((response) => response.json())
         .then((data) => setMessages(data))
         .catch((error) => console.error('Error fetching messages:', error));
     }
-  }, [selectedMember]);
+  }, [selectedUser]);
 
   const sendMessage = (): void => {
-    if (newMessage.trim() === '' || !selectedMember || !connection) return;
+    if (newMessage.trim() === '' || !selectedUser || !connection) return;
 
     const newMessageObj: Message = {
-      member_id: selectedMember._id,
+      user_id: selectedUser._id,
       text: newMessage,
       timestamp: Date.now(),
     };
@@ -138,17 +138,17 @@ const Chat: React.FC = () => {
       .catch((error) => console.error('Error sending message:', error));
   };
 
-  const selectMember = (member: Member): void => {
-    // Update the URL with the member_id
+  const selectUser = (user: User): void => {
+    // Update the URL with the user_id
     const url = new URL(window.location.href);
-    url.searchParams.set('member_id', member._id);
+    url.searchParams.set('user_id', user._id);
     window.history.pushState({}, '', url.toString());
 
-    setSelectedMember(member);
+    setSelectedUser(user);
   };
 
-  const filteredMessages = selectedMember
-    ? messages.filter((message) => message.member_id === selectedMember._id)
+  const filteredMessages = selectedUser
+    ? messages.filter((message) => message.user_id === selectedUser._id)
     : [];
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>): void => {
@@ -160,38 +160,38 @@ const Chat: React.FC = () => {
   return (
     <div className="min-h-screen flex">
       <div className="w-1/4 overflow-y-scroll p-4 border-r">
-        <h2 className="text-xl font-semibold mb-4">Members</h2>
+        <h2 className="text-xl font-semibold mb-4">Users</h2>
         <p className="mb-2">
-          {selectedMember ? `Selected: ${selectedMember.name}` : 'No member selected'}
+          {selectedUser ? `Selected: ${selectedUser.name}` : 'No user selected'}
         </p>
         <ul>
-          {members.map((member) => (
+          {users.map((user) => (
             <li
-              key={member._id}
-              className={`cursor-pointer mb-2 p-2 rounded ${selectedMember?._id === member._id ? 'bg-blue-200' : 'bg-gray-200'
+              key={user._id}
+              className={`cursor-pointer mb-2 p-2 rounded ${selectedUser?._id === user._id ? 'bg-blue-200' : 'bg-gray-200'
                 }`}
-              onClick={() => selectMember(member)}
+              onClick={() => selectUser(user)}
             >
-              {member.name}
+              {user.name}
             </li>
           ))}
         </ul>
       </div>
       <div className="flex-1 p-4" style={{ maxHeight: '100vh', overflowY: 'scroll', display: 'flex', flexDirection: 'column' }}>
-        {selectedMember && (
+        {selectedUser && (
           <div className="border-b">
             <div className="w-12 h-12 rounded-full mb-2 overflow-hidden">
               {/* Use the Image component from next/image */}
               <Image
-                src={selectedMember.avatar}
-                alt={selectedMember.name}
+                src={selectedUser.avatar}
+                alt={selectedUser.name}
                 objectFit="cover"
                 className="w-12 h-12 rounded-full mb-2"
                 width={100}
                 height={100}
               />
             </div>
-            <p className="text-xl font-semibold">{selectedMember.name}</p>
+            <p className="text-xl font-semibold">{selectedUser.name}</p>
           </div>
         )}
         <div className="flex-1 overflow-y-scroll">

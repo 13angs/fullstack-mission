@@ -12,10 +12,10 @@ namespace chat_sv.Hubs
             // Broadcast the message to all clients
             await Clients.All.SendAsync("ReceiveMessage", message);
         }
-        public async Task SelectMember(string memberId)
+        public async Task SelectUser(string userId)
         {
-            // Broadcast the selected member to all clients
-            await Clients.All.SendAsync("MemberSelected", memberId);
+            // Broadcast the selected User to all clients
+            await Clients.All.SendAsync("UserSelected", userId);
         }
     }
 }

@@ -37,21 +37,21 @@ using (var scope = app.Services.CreateAsyncScope())
     var mongoClient = scope.ServiceProvider.GetRequiredService<IMongoClient>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var database = mongoClient.GetDatabase("chat_db");
-    var membersCollection = database.GetCollection<Member>("members");
-    var members = membersCollection.Find(_=>true);
+    var usersCollection = database.GetCollection<User>("users");
+    var users = usersCollection.Find(_=>true);
 
-    if(!members.Any())
+    if(!users.Any())
     {
-        logger.LogInformation("No member exist!\nAdding new members...");
-        await membersCollection.InsertManyAsync(new List<Member>{
-            new Member{
+        logger.LogInformation("No user exist!\nAdding new users...");
+        await usersCollection.InsertManyAsync(new List<User>{
+            new User{
                 Id="c13cf23b-59c8-490d-8e8b-93c1988e203b",
-                Name="Member 1",
+                Name="user 1",
                 Avatar="https://cdn.dribbble.com/users/3841177/screenshots/11950347/cartoon-avatar_2020__8_circle.png"
             },
-            new Member{
+            new User{
                 Id="29e7066b-0c42-48de-a835-1a103fd1dade",
-                Name="Member 2",
+                Name="user 2",
                 Avatar="https://www.gamer-hub.io/static/img/team/sam.png"
             },
         });
