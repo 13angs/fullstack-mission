@@ -60,6 +60,33 @@ const Chat: React.FC = () => {
   }, [connection]);
 
   useEffect(() => {
+    if (!connection || !selectedMember) return;
+
+    // Notify server when a member is selected
+    connection.invoke('SelectMember', selectedMember._id)
+      .catch((err) => console.error('Error invoking SelectMember:', err));
+    // eslint-disable-next-line no-use-before-define
+  }, []);
+
+  useEffect(() => {
+    if (!connection) return;
+
+    // Subscribe to MemberSelected event
+    connection.on('MemberSelected', (selectedMemberId) => {
+      // Handle member selection in real-time
+      const selected = members.find((member) => member._id === selectedMemberId);
+      if (selected) {
+        setSelectedMember(selected);
+      }
+    });
+
+    return () => {
+      // Unsubscribe from MemberSelected event when component unmounts
+      connection.off('MemberSelected');
+    };
+  }, []);
+
+  useEffect(() => {
     // Fetch members from the API
     fetch('http://localhost:5044/api/chat/members')
       .then((response) => response.json())
@@ -106,10 +133,7 @@ const Chat: React.FC = () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        member_id: selectedMember._id,
-        text: newMessage,
-      }),
+      body: JSON.stringify(newMessageObj),
     })
       .catch((error) => console.error('Error sending message:', error));
   };
@@ -137,6 +161,9 @@ const Chat: React.FC = () => {
     <div className="min-h-screen flex">
       <div className="w-1/4 overflow-y-scroll p-4 border-r">
         <h2 className="text-xl font-semibold mb-4">Members</h2>
+        <p className="mb-2">
+          {selectedMember ? `Selected: ${selectedMember.name}` : 'No member selected'}
+        </p>
         <ul>
           {members.map((member) => (
             <li
